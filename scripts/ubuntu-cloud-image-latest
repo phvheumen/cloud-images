@@ -41,7 +41,11 @@ def main() -> int:
         f"{UBUNTU_CLOUD_IMAGE_URL}/releases/{args.version}/{latest_version}"
     )
 
-    if not args.no_image:
+    if args.release_tag:
+        stdout(latest_version)
+        return RETURN_OK
+
+    if args.image or not (args.checksum or args.manifest):
         latest_image_url = f"{latest_release_url}/ubuntu-{args.version}-server-cloudimg-{args.arch}.img"
         stdout(latest_image_url)
 
@@ -83,7 +87,12 @@ def parse_arguments() -> argparse.Namespace:
         "--checksum", action="store_true", help="get SHA256 checksum file url"
     )
     parser.add_argument("--manifest", action="store_true", help="get manifest file url")
-    parser.add_argument("--no-image", action="store_true", help="skip the image url")
+    parser.add_argument("--image", action="store_true", help="get image file url")
+    parser.add_argument(
+        "--release-tag",
+        action="store_true",
+        help="print release tag <release-YYYYMMDD>",
+    )
     args = parser.parse_args()
 
     return args
