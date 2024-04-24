@@ -1,0 +1,93 @@
+#!/usr/bin/env python3
+
+from bs4 import BeautifulSoup
+import sys
+import argparse
+import requests
+
+RETURN_ERR = 1
+RETURN_OK = 0
+UBUNTU_CLOUD_IMAGE_URL = "https://cloud-images.ubuntu.com"
+
+
+def main() -> int:
+    args = parse_arguments()
+
+    url = f"{UBUNTU_CLOUD_IMAGE_URL}/releases/{args.version}/"
+    r = requests.get(url)
+
+    if not r.ok:
+        error(f"GET request to {url} responded with: {r.status_code} {r.reason}")
+        return RETURN_ERR
+
+    soup = BeautifulSoup(r.content, "html.parser")
+
+    releases = sorted(
+        map(
+            lambda rel: rel.strip("/"),
+            filter(
+                lambda href: href.startswith("release-"),
+                map(lambda a: a.get("href"), soup.find_all("a")),
+            ),
+        )
+    )
+
+    if len(releases) == 0:
+        error(f"Failed to get an latest release from {url}")
+        return RETURN_ERR
+
+    latest_version = releases.pop()
+    latest_release_url = (
+        f"{UBUNTU_CLOUD_IMAGE_URL}/releases/{args.version}/{latest_version}"
+    )
+
+    if not args.no_image:
+        latest_image_url = f"{latest_release_url}/ubuntu-{args.version}-server-cloudimg-{args.arch}.img"
+        stdout(latest_image_url)
+
+    if args.checksum:
+        checksum_url = f"{latest_release_url}/SHA256SUMS"
+        stdout(checksum_url)
+
+    if args.manifest:
+        manifest_url = f"{latest_release_url}/ubuntu-{args.version}-server-cloudimg-{args.arch}.manifest"
+        stdout(manifest_url)
+
+    return RETURN_OK
+
+
+def stdout(msg: str) -> None:
+    print(msg, file=sys.stdout)
+
+
+def stderr(msg: str) -> None:
+    print(msg, file=sys.stderr)
+
+
+def error(msg: str) -> None:
+    stderr(f"[Error] {msg}")
+
+
+def parse_arguments() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Get url to latest Ubuntu cloud image",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--arch", choices=["amd64", "arm64"], default="amd64", help="image architecture"
+    )
+    parser.add_argument(
+        "--version", choices=["22.04", "24.04"], default="22.04", help="ubuntu version"
+    )
+    parser.add_argument(
+        "--checksum", action="store_true", help="get SHA256 checksum file url"
+    )
+    parser.add_argument("--manifest", action="store_true", help="get manifest file url")
+    parser.add_argument("--no-image", action="store_true", help="skip the image url")
+    args = parser.parse_args()
+
+    return args
+
+
+if __name__ == "__main__":
+    sys.exit(main())
