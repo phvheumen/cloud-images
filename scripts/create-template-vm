@@ -1,0 +1,63 @@
+#!/bin/sh
+#
+set -e -o pipefail
+
+SCRIPT_DIR=$( dirname -- "$( readlink -f -- "$0"; )"; )
+DISTRO="ubuntu"
+DISTRO_VERSION="22.04"
+IMAGE_DIR="$DISTRO-$DISTRO_VERSION"
+
+main() {
+  check_required_programs
+  create_release_dir
+  download_latest_cloud_image
+
+}
+
+check_required_programs() {
+  PROGRAM_NOT_FOUND=0
+
+  required_program curl
+  required_program virt-customize
+  required_program qm
+
+  if [ $PROGRAM_NOT_FOUND -ne 0 ]; then
+    exit 1 
+  fi 
+}
+
+required_program() {
+  if ! type "$1" &>/dev/null; then
+    echo "[Error] required program not found: '$1'"
+    PROGRAM_NOT_FOUND=1
+  fi
+}
+
+download_latest_cloud_image() {
+  if [ -z "$(ls $IMAGE_DIR/$(release_tag))" ]; then
+    curl --output-dir $IMAGE_DIR/$(release_tag) --remote-name-all $(all_download_files)
+  fi
+}
+
+create_release_dir() {
+  local release_tag=$(release_tag)
+  local release_dir=$IMAGE_DIR/$release_tag
+  if [ ! -d $release_dir ]; then
+    mkdir -p $release_dir
+    ln -s -r -f $release_dir $IMAGE_DIR/latest 
+  fi
+}
+
+RELEASE_TAG=''
+release_tag() {
+  if [ -z $RELEASE_TAG ]; then
+    RELEASE_TAG=$($SCRIPT_DIR/ubuntu-cloud-image-latest --release-tag)
+  fi
+  echo $RELEASE_TAG
+}
+
+all_download_files() {
+  echo $($SCRIPT_DIR/ubuntu-cloud-image-latest --image --checksum --manifest)
+}
+
+main
