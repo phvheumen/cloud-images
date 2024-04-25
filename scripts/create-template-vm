@@ -62,12 +62,14 @@ all_download_files() {
 }
 
 verify_download() {
-  pushd $IMAGE_DIR/latest/
+  pushd $IMAGE_DIR/latest/ &>/dev/null
   if ! sha256sum -c --ignore-missing SHA256SUMS &>/dev/null; then
     echo "[Error] Checksum validation failed"
     exit 1
+  else
+    echo "[Info] Checksum validation OK"
   fi
-  popd
+  popd &>/dev/null
 }
 
 main
