@@ -13,6 +13,7 @@ main() {
   download_latest_cloud_image
   verify_download
   copy_image_file
+  modify_image
 }
 
 check_required_programs() {
@@ -77,6 +78,12 @@ copy_image_file() {
   pushd $IMAGE_DIR/latest/ &>/dev/null
   local img_file=$(ls *.img | head -n1) 
   cp --no-clobber $img_file $(basename --suffix='.img' $img_file).modified.img
+  popd &>/dev/null
+}
+
+modify_image() {
+  pushd $IMAGE_DIR/latest/ &>/dev/null
+  virt-customize -a $(ls *.modified.img | head -n1) --install qemu-guest-agent
   popd &>/dev/null
 }
 
