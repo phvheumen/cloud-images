@@ -12,6 +12,7 @@ main() {
   create_release_dir
   download_latest_cloud_image
   verify_download
+  copy_image_file
 }
 
 check_required_programs() {
@@ -69,6 +70,13 @@ verify_download() {
   else
     echo "[Info] Checksum validation OK"
   fi
+  popd &>/dev/null
+}
+
+copy_image_file() {
+  pushd $IMAGE_DIR/latest/ &>/dev/null
+  local img_file=$(ls *.img | head -n1) 
+  cp --no-clobber $img_file $(basename --suffix='.img' $img_file).modified.img
   popd &>/dev/null
 }
 
