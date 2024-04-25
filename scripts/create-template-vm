@@ -14,6 +14,7 @@ main() {
   verify_download
   copy_image_file
   modify_image
+  create_template_vm
 }
 
 check_required_programs() {
@@ -85,6 +86,36 @@ modify_image() {
   pushd $IMAGE_DIR/latest/ &>/dev/null
   virt-customize -a $(ls *.modified.img | head -n1) --install qemu-guest-agent
   popd &>/dev/null
+}
+
+create_template_vm() {
+  qm create 9000 \
+    --name "ubuntu-22.04-cloudinit-template" \
+    --ostype l26 \
+    --agent 1 \
+    --memory 1024 \
+    --cpu host \
+    --socket 1 \
+    --cores 1 \
+    --vga serial0 \
+    --serial0 socket \
+    --net0 virtio,bridge=vmbr0
+
+  # Assign disk and cloud-init
+  qm importdisk 9000 *.modified.img local-lvm
+  qm set 9000 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-9000-disk-0
+  qm set 9000 --boot order=scsi0
+  qm set 9000 --ide2 local-lvm:cloudinit
+
+  # Set cloud-init properties
+  qm set 9000 --tags ubuntu-template,22.04,cloudinit
+  qm set 9000 --sshkeys ~/.ssh/authorized_keys
+  qm set 9000 --ipconfig0 ip=dhcp
+  # qm set 8001 --cicustom "vendor=local:snippets/vendor.yaml"
+  # qm set 8001 --ciuser untouchedwagons
+  # qm set 8001 --cipassword $(openssl passwd -6 $CLEARTEXT_PASSWORD)
+
+  qm set 9000 template
 }
 
 main
