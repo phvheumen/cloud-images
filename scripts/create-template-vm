@@ -11,7 +11,7 @@ main() {
   check_required_programs
   create_release_dir
   download_latest_cloud_image
-
+  verify_download
 }
 
 check_required_programs() {
@@ -20,6 +20,7 @@ check_required_programs() {
   required_program curl
   required_program virt-customize
   required_program qm
+  required_program sha256sum
 
   if [ $PROGRAM_NOT_FOUND -ne 0 ]; then
     exit 1 
@@ -58,6 +59,15 @@ release_tag() {
 
 all_download_files() {
   echo $($SCRIPT_DIR/ubuntu-cloud-image-latest --image --checksum --manifest)
+}
+
+verify_download() {
+  pushd $IMAGE_DIR/latest/
+  if ! sha256sum -c --ignore-missing SHA256SUMS &>/dev/null; then
+    echo "[Error] Checksum validation failed"
+    exit 1
+  fi
+  popd
 }
 
 main
