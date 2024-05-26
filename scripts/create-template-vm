@@ -4,8 +4,9 @@ set -e -o pipefail
 
 SCRIPT_DIR=$( dirname -- "$( readlink -f -- "$0"; )"; )
 DISTRO="ubuntu"
-DISTRO_VERSION="22.04"
+DISTRO_VERSION="24.04"
 IMAGE_DIR="$DISTRO-$DISTRO_VERSION"
+TEMPLATE_VM_ID=9001
 
 main() {
   check_required_programs
@@ -55,13 +56,13 @@ create_release_dir() {
 RELEASE_TAG=''
 release_tag() {
   if [ -z $RELEASE_TAG ]; then
-    RELEASE_TAG=$($SCRIPT_DIR/ubuntu-cloud-image-latest --release-tag)
+    RELEASE_TAG=$($SCRIPT_DIR/ubuntu-cloud-image-latest --version ${DISTRO_VERSION} --release-tag)
   fi
   echo $RELEASE_TAG
 }
 
 all_download_files() {
-  echo $($SCRIPT_DIR/ubuntu-cloud-image-latest --image --checksum --manifest)
+  echo $($SCRIPT_DIR/ubuntu-cloud-image-latest --version ${DISTRO_VERSION} --image --checksum --manifest)
 }
 
 verify_download() {
@@ -90,8 +91,8 @@ modify_image() {
 
 create_template_vm() {
   pushd $IMAGE_DIR/latest/ &>/dev/null
-  qm create 9000 \
-    --name "ubuntu-22.04-cloudinit-template" \
+  qm create ${TEMPLATE_VM_ID} \
+    --name "${DISTRO}-${DISTRO_VERSION}-cloudinit-template" \
     --ostype l26 \
     --agent 1 \
     --memory 1024 \
@@ -103,20 +104,20 @@ create_template_vm() {
     --net0 virtio,bridge=vmbr0
 
   # Assign disk and cloud-init
-  qm importdisk 9000 *.modified.img local-lvm
-  qm set 9000 --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-9000-disk-0,discard=on
-  qm set 9000 --boot order=scsi0
-  qm set 9000 --ide2 local-lvm:cloudinit
+  qm importdisk ${TEMPLATE_VM_ID} *.modified.img local-lvm
+  qm set ${TEMPLATE_VM_ID} --scsihw virtio-scsi-pci --scsi0 local-lvm:vm-${TEMPLATE_VM_ID}-disk-0,discard=on
+  qm set ${TEMPLATE_VM_ID} --boot order=scsi0
+  qm set ${TEMPLATE_VM_ID} --ide2 local-lvm:cloudinit
 
   # Set cloud-init properties
-  qm set 9000 --tags ubuntu-template,22.04,cloudinit
-  qm set 9000 --sshkeys ~/.ssh/authorized_keys
-  qm set 9000 --ipconfig0 ip=dhcp
-  # qm set 8001 --cicustom "vendor=local:snippets/vendor.yaml"
-  # qm set 8001 --ciuser untouchedwagons
-  # qm set 8001 --cipassword $(openssl passwd -6 $CLEARTEXT_PASSWORD)
+  qm set ${TEMPLATE_VM_ID} --tags ${DISTRO}-${DISTRO_VERSION},cloudinit
+  qm set ${TEMPLATE_VM_ID} --sshkeys ~/.ssh/authorized_keys
+  qm set ${TEMPLATE_VM_ID} --ipconfig0 ip=dhcp
+  # qm set ${TEMPLATE_VM_ID} --cicustom "vendor=local:snippets/vendor.yaml"
+  # qm set ${TEMPLATE_VM_ID} --ciuser untouchedwagons
+  # qm set ${TEMPLATE_VM_ID} --cipassword $(openssl passwd -6 $CLEARTEXT_PASSWORD)
 
-  qm template 9000
+  qm template ${TEMPLATE_VM_ID}
   popd &>/dev/null
 }
 
